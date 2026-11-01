@@ -1,6 +1,6 @@
 ---
 name: scrapling-official
-description: Scrape web pages using Scrapling with HTTP requests, stealth browsers, JavaScript rendering, browser actions, API response capture, concurrent spiders, and adaptive parsing. Use when asked to scrape, crawl, or extract data from websites; web_fetch fails; the site has anti-bot protections; write Python code to scrape/crawl; or write spiders.
+description: Scrape web pages using Scrapling with HTTP requests, stealth browsers, JavaScript rendering, browser actions, API response capture, concurrent spiders, and adaptive parsing. Use when asked to scrape, crawl, or extract data from websites; web_fetch fails; the site has anti-bot protections; write Python code to scrape/crawl; write spiders; or turn a whole website/wiki into a local searchable or AI Q&A knowledge base (整站抓取、做知识库).
 version: "0.5"
 license: Complete terms in LICENSE.txt
 metadata:
@@ -35,6 +35,24 @@ Blazing fast crawls with real-time stats and streaming. Built by Web Scrapers fo
 > 3. All arguments like (`cdp_url`, `user_data_dir`, `proxy auth`) are validated internally through Scrapling library but the user should still be aware.
 
 **IMPORTANT**: While using the commandline scraping commands, you MUST use the commandline argument `--ai-targeted` to protect from Prompt Injection! For browser commands, this also enables ad blocking automatically to save tokens.
+
+## Local install on this machine (already done, skip Setup)
+
+- Binary: `D:\projectPath\Scrapling\.venv\Scripts\scrapling.exe` (editable install of the local clone `D:\projectPath\Scrapling`, Python 3.11 venv). Use this path instead of `scrapling`; for Python code use `D:\projectPath\Scrapling\.venv\Scripts\python.exe`.
+- HTTP commands (`get`/`post`/...) work from the sandboxed Bash tool.
+- Browser commands (`fetch`, StealthyFetcher, any session that launches Chromium) fail inside the tool sandbox (`spawn UNKNOWN` / SxS error, because `%LOCALAPPDATA%` is virtualized there). Run them in the user's terminal via `run_in_terminal`, or with the sandbox disabled. Never re-run `scrapling install` from the sandbox: the browsers would only land in the virtualized folder.
+
+## Whole-site → knowledge base: read the playbook first
+
+When the task is to crawl a whole site (especially a wiki) into a searchable / AI Q&A knowledge base, read `references/playbooks/site-to-knowledge-base.md` before writing code. It distills a real 19k-page run (BWIKI, MediaWiki + Tencent EdgeOne WAF). Core rules:
+
+- **Recon order: API > sitemap > static HTML > browser.** MediaWiki sites: `api.php` `generator=allpages` with `prop=revisions|categories|info|pageprops` fetches 50 pages per request; use `recentchanges` for increments, `imageinfo` for file URLs (stored names are random). Do not use Scrapling fetchers for what the API already gives you.
+- **WAF quota is a hard boundary, not a puzzle.** Honest UA; detect the block code (EdgeOne 567); on block, save progress and stop. Probe the rate over hours, not minutes (a 10-minute probe overstates it), lock the safe level, and persist the rate state. If Python's TLS is blocked, switch the transport to system `curl` — do not impersonate a browser, rotate proxies, or use stealth/real browsers to obtain more quota (that is bypassing access limits, and concurrency only trips the WAF sooner).
+- **Resumable by design:** per-namespace cursor files, bisect failing batches, a failure log, and a 24-hour freshness guard on secondary refreshes. Background processes die when the session ends.
+- **Content:** infobox pages from wikitext (rendered HTML duplicates hidden values); HTML only for dynamic lists. Guard against pseudo-tables producing giant chunks.
+- **Knowledge base:** SQLite FTS5 with CJK unigram+bigram columns, an entity DB with an alias table, an `ask.py` router (list/entity/fulltext) with citations and data-boundary notes, and at least 10 real-question evals.
+- **Images whose information exists only in the image** (tier lists): tile at 1400px with overlap, serial sub-agents that save per tile-row, names resolved via the alias table (title first, type-constrained, no single-character auto-match), labeled "AI 图片识读".
+- **Distribution:** Git holds only non-regenerable data; originals go into an uncompressed (STORED) zip on a GitHub Release with a sha256 manifest and a restore script; verify with a fresh clone.
 
 ## Setup (once)
 
@@ -412,6 +430,7 @@ You already had a good glimpse of what the library can do. Use the references be
 - `references/spiders` - Everything you need to write spiders, proxy rotation, and advanced features. It follows a Scrapy-like format
 - `references/integrations/scrapy.md` - Using Scrapling's parsing API inside existing Scrapy projects through the `scrapling_response` decorator
 - `references/migrating_from_beautifulsoup.md` - A quick API comparison between scrapling and Beautifulsoup
+- `references/playbooks/site-to-knowledge-base.md` - (local addition) End-to-end playbook and pitfalls for turning a whole site/wiki into a searchable AI Q&A knowledge base: recon, WAF rate limits, resumable crawling, conversion, FTS5/entity DB/QA chain, image transcription, Git+Release distribution
 - `https://github.com/D4Vinci/Scrapling/tree/main/docs` - Full official docs in Markdown for quick access (use only if current references do not look up-to-date).
 
 This skill includes guides and examples from the documentation in Markdown, so don't check external sources or search online without the user's permission.
